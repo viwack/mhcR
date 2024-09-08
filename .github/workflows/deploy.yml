@@ -1,0 +1,30 @@
+name: RShiny Deployment
+
+on:
+  push:
+    branches:
+      - main  # Change this to your default branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+
+      - name: Install dependencies
+        run: |
+          R -e "install.packages(c('devtools', 'rsconnect'))"
+          R -e "if (file.exists('DESCRIPTION')) devtools::install_deps(dep = TRUE)"
+
+      - name: Deploy to Shinyapps.io
+        env:
+          SHINYAPPS_TOKEN: ${{ secrets.SHINYAPPS_TOKEN }}
+          SHINYAPPS_SECRET: ${{ secrets.SHINYAPPS_SECRET }}
+        run: |
+          R -e "rsconnect::setAccountInfo(name='<your-shinyapps-username>', token=Sys.getenv('SHINYAPPS_TOKEN'), secret=Sys.getenv('SHINYAPPS_SECRET'))"
+          R -e "rsconnect::deployApp('.')"
