@@ -1,0 +1,13 @@
+name: mhcR
+title: mhcR
+username: vwang
+account: vwang
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 12640845
+bundleId: 9076428
+url: https://vwang.shinyapps.io/mhcR/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: reactivity
