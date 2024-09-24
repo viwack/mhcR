@@ -1,112 +1,103 @@
 reactivity
 
-build_marker_layer <- function(LARA_C) {
-    if (!LARA_C) {
-      if (length(circlelist_mh) == 0 && length(mklist_mh) == 0) {
-        for (ind in 1:nrow(mhvillage_df)) {
-          lon <- as.numeric(mhvillage_df$longitude[ind])
-          lat <- as.numeric(mhvillage_df$latitude[ind])
-          
-          # Handle missing entries
-          house_mh <- ifelse(is.na(mhvillage_df$`House district`[ind]), "missing", round(mhvillage_df$`House district`[ind]))
-          senate_mh <- ifelse(is.na(mhvillage_df$`Senate district`[ind]), "missing", round(mhvillage_df$`Senate district`[ind]))
-          mhsites <- ifelse(is.na(mhvillage_df$Sites[ind]), "missing", round(mhvillage_df$Sites[ind]))
-          
-          markeri <- list(lng = lon, lat = lat, popup = paste(
-            mhvillage_df$Name[ind], "<br>",
-            'House District:', house_mh, "<br>",
-            'Senate District:', senate_mh, "<br>", 
-            'Source: MHVillage'
-          ))
-          
-          circleMHi <- list(lng = lon, lat = lat, radius = 1, color = "orange", fillColor = "orange")
-          
-          circlelist_mh <<- append(circlelist_mh, list(circleMHi))
-          mklist_mh <<- append(mklist_mh, list(markeri))
-        }
-      }
-    } else {
-      if (length(circlelist_lara) == 0 && length(mklist_lara) == 0) {
-        for (ind in 1:nrow(lara_df)) {
-          lon <- as.numeric(lara_df$longitude[ind])
-          lat <- as.numeric(lara_df$latitude[ind])
-          
-          house_lara <- ifelse(is.na(lara_df$`House district`[ind]), "missing", as.integer(lara_df$`House district`[ind]))
-          senate_lara <- ifelse(is.na(lara_df$`Senate district`[ind]), "missing", as.integer(lara_df$`Senate district`[ind]))
-          larasites <- ifelse(is.na(lara_df$`Total_#_Sites`[ind]), "missing", round(lara_df$`Total_#_Sites`[ind]))
-          
-          if (lon == 0 && lat == 0) {
-            next
-          }
-          
-          try({
-            markeri <- list(lng = lon, lat = lat, popup = paste(
-              lara_df$`Owner / Community_Name`[ind],
-              '<br> House District:', house_lara,
-              '<br> Senate District:', senate_lara,
-              '<br> Number of Sites:', larasites,
-              '<br> Source: LARA'
-            ))
-            
-            circlei <- list(lng = lon, lat = lat, radius = 1, color = "blue", fillColor = "blue")
-            
-            circlelist_lara <<- append(circlelist_lara, list(circlei))
-            mklist_lara <<- append(mklist_lara, list(markeri))
-          })
-        }
-      }
-    }
-  }
-
-observe({
+output$leafletMap <- renderLeaflet({
+    leaflet() %>%
+      addTiles() %>%
+      setView(lng = -85.6024, lat = 44.3148, zoom = 6) %>%
+      addPolygons(
+        data = house_districts,
+        weight = 1,
+        opacity = 1,
+        color = "green",
+        fillOpacity = 0.4,
+        highlightOptions = highlightOptions(
+          weight = 5,
+          color = "yellow",
+          fillColor =  "orange",
+          bringToFront = FALSE
+        ),
+        group = "House Districts"
+      ) %>%
+      addPolygons(
+        data = senate_districts,
+        weight = 1,
+        opacity = 1,
+        color = "purple",
+        fillOpacity = 0.4,
+        highlightOptions = highlightOptions(
+          weight = 5,
+          color = "yellow",
+          fillColor =  "orange",
+          bringToFront = FALSE
+        ),
+        group = "Senate Districts"
+      ) %>%
+      addLayersControl(
+        overlayGroups = c("House Districts", "Senate Districts"),
+        options = layersControlOptions(collapsed = TRUE)
+      ) %>%
+      hideGroup(c("House Districts", "Senate Districts"))
+  })
+  
+  
+output$leafletMap <- renderLeaflet({
+    leaflet() %>%
+      addTiles() %>%
+      setView(lng = -84.3615564, lat = 44.44343, zoom = 6) %>%
+      addGeoJSON(
+         house_districts_j,
+         fillColor = "green",
+         color = "darkgreen",
+         fillOpacity = 0.5,
+         weight = 1,
+         group = "House Districts"
+     ) %>%
+     addGeoJSON(
+         senate_districts_j,
+         color = "blueviolet",
+         fillColor = "purple",
+         fillOpacity = 0.5,
+         weight = 1,
+         group = "Senate Districts"
+     ) %>%
+     addLayersControl(
+         overlayGroups = c("House Districts", "Senate Districts")
+     ) %>%
+     hideGroup(c("House Districts", "Senate Districts"))
+  })
+  
+  observeEvent(input$layerlist, {
+    leafletProxy("leafletMap") %>% 
+      clearMarkers() %>% 
+      clearShapes() %>%
+      clearMarkerClusters()
+    
     map <- leafletProxy("leafletMap")
-    map <- clearMarkers(map)
-    map <- clearShapes(map)
     
-    if ("Marker MHVillage" %in% input$layerlist) {
-      build_marker_layer(FALSE)
-      for (marker in mklist_mh) {
-        map <- map %>% addMarkers(
-          lng = marker$lng,
-          lat = marker$lat,
-          popup = marker$popup,
-          clusterOptions = markerClusterOptions()
-        )
-      }
-    }
-    
-    if ("Circle MHVillage (location only)" %in% input$layerlist) {
-      for (circle in circlelist_mh) {
-        map <- map %>% addCircles(
-          lng = circle$lng,
-          lat = circle$lat,
-          radius = circle$radius,
-          color = circle$color,
-          fillColor = circle$fillColor
-        )
-      }
-    }
-    
-    if ("Marker LARA" %in% input$layerlist) {
-      build_marker_layer(TRUE)
-      for (marker in mklist_lara) {
-        map <- map %>% addMarkers(
-          lng = marker$lng,
-          lat = marker$lat,
-          popup = marker$popup
-        )
-      }
-    }
-    
-    if ("Circle LARA (location only)" %in% input$layerlist) {
-      for (circle in circlelist_lara) {
-        map <- map %>% addCircles(
-          lng = circle$lng,
-          lat = circle$lat,
-          radius = circle$radius,
-          color = circle$color,
-          fillColor = circle$fillColor
-        )
+    for (layer in input$layerlist) {
+      if (layer != " ") {
+        map <- build_marker_layer(map, layer)
       }
     }
   })
+  
+  
+  mapdeck(style = mapdeck_style("dark"), 
+            location = c(-84.3615564, 44.44343), 
+            zoom = 6) %>%
+      add_geojson(
+        data = house_districts_j,
+        layer_id = "house_districts",
+        fill_colour = "green",
+        stroke_colour = "darkgreen",
+        fill_opacity = 0.5,
+        stroke_width = 1
+      ) %>%
+      add_geojson(
+        data = senate_districts_j,
+        layer_id = "senate_districts",
+        fill_colour = "purple",
+        stroke_colour = "blueviolet",
+        fill_opacity = 0.5,
+        stroke_width = 1
+      )
