@@ -1,3 +1,4 @@
+
 library(leaflet)
 library(shiny)
 library(bslib)
@@ -42,6 +43,9 @@ lara_simple$County <- str_to_title(lara_simple$County)
 mi_counties <- counties(state = "MI")
 mi_counties$NAME <- sort(mi_counties$NAME)
 
+house_districts <- fromJSON("Michigan_State_House_Districts_2021.json")
+senate_districts <- fromJSON("Michigan_State_Senate_Districts_2021.json")
+
 build_infographics1 <- function(lara_df) {
   total_sites_by_county <- lara_df %>%
     filter(!is.na(`Total_#_Sites`)) %>%
@@ -54,6 +58,7 @@ build_infographics1 <- function(lara_df) {
   
   plot <- ggplot(top_20, aes(x = Total_Sites, y = reorder(County, Total_Sites))) +
     geom_bar(stat = "identity", fill = "cadetblue4", color = "cadetblue4") +
+    geom_bar(stat = "identity", fill = "mediumpurple", color = "mediumpurple", alpha = 0.7) +
     labs(
       title = "Top 20 Counties by Number of MHCs (LARA)",
       x = "Total Number of Sites",
@@ -96,6 +101,10 @@ build_infographics2 <- function(mhvillage_df) {
     labs(x = "Average Rent ($)", y = "County", title = "Average rent by county (MHVillage)") +
     theme_minimal() +
     geom_text(aes(label = n), hjust = -0.2, color = "black", size = 4)
+    geom_bar(stat = "identity", fill = "pink") +
+    labs(x = "Average Rent ($)", y = "County", title = "Average rent by county (MHVillage)") +
+    theme_minimal() +
+    geom_text(aes(label = n), hjust = -0.1, color = "black", size = 4)
   
   # Print the plot
   print(ax)
@@ -171,6 +180,49 @@ ui <- navbarPage(
     "Map Tool",
     fluidPage(
       titlePanel("Michigan Manufacturing Housing Communities Map Tool"),
+
+
+ui <- navbarPage(
+  "MHAction Manufactured Housing Communities",
+  # First tab with existing content
+  tabPanel(
+    "About",
+    page_fillable(
+          titlePanel(
+            tags$b("Manufactured Housing Communities in Michigan"),
+          ),
+          h5("A mapping project by ", 
+             a("INFORMS", href = "https://informs.engin.umich.edu/", target = "_blank"), 
+             " and ", 
+             a("CTAC", href = "https://ginsberg.umich.edu/ctac", target = "_blank"),
+             " at the University of Michigan")), br(),
+      layout_columns(
+        card(
+          card_title("About"),
+          p("The MHAction Mapping Tool is a visualization application designed to highlight the distribution of manufactured housing communities (MHC's) across the state of Michigan. The project began in late December 2023, initially between INFORMs and MHAction.
+            In May 2024, INFORMs transitioned the project to the Community Technical Assistance Collaborative under the Ginsberg Center for Community Service and Learning. 
+            The new development team aimed to improve the number of users allowed on the webpage, transitioning the webpage to GitHub pages. This allows for easy access to source data and code files in the future, as well as improved deployment capacity.
+             Additional functional capabilities were added, including downloadable .csv files, user interface (UI) improvements, and data visibility."),
+          p("Two sources of data were used to create this application. Michigan Department of Licensing and Regulatory Affairs (LARA) data was obtained by a FOIA request in January 2024. This contains a complete list of MHC's in the state of Michigan, per state regulatory guidelines for registration. 
+            MHVillage data was scraped from the website in December 2023. The data sources can differ significantly, including by MHC name and management, and MHVillage data is typically incomplete. However, it is important to include data from both sources, as 
+            this enhances the reliability and accuracy of the map visualization tool by allowing users to cross-verify information and identify discrepancies."),
+          p("State House and Senate districting information is essential to help identify legislators and communities most significantly impacted by laws surroundign Manufactured Housing Communities. State districting information was based off of the 2021 Linden (State Senate) and Hickory (State House) maps. 
+            These were drafted by the Michigan Independent Citizens Redistricting Commission following the decennial US Census results in 2020."),
+          p("For more information, please visit ",
+            a("MHAction.org", href = "https://www.mhaction.org/", target = "_blank"))
+        )),
+      layout_columns(
+        card(
+          card_title("Key Terms"),
+          p("* MHC: Manufactured Housing Community"),
+          p("* LARA: Michigan Department of Licensing and Regulatory Affairs. Michigan MHC's are required to register with LARA."),
+          p("* MHVillage: Online marketplace for buying and selling manufactured homes. Data may be incomplete.")))),
+  
+    # Additional tabs
+  tabPanel(
+    "Map Tool",
+    fluidPage(
+      titlePanel("Map Tool"),
       fluidRow(
         column(
           width = 5,
@@ -201,6 +253,15 @@ ui <- navbarPage(
                 <br> Note: To visualize circle sites clearly, please add a House or Senate districting layer before selecting a marker.
               </ol>
             "),
+            h5("Instructions"),
+            "Select the layers you would like to view below. Marker indicates that each MHC from the source you selected will include a popup with information about the MHC name, House and Senate district, and data source.", 
+            "Circle layers will only pinpoint the coordinates of each MHC with no additional information. If you would like to see districting, the layer selection in the upper-right corner of the map allows selection of the geographic boundary.",
+            selectInput("layerlist", "Choose layers:", choices = c(" ", 
+                                                                   "Marker MHVillage",
+                                                                   "Marker LARA",
+                                                                   "Circle MHVillage (location only)",
+                                                                   "Circle LARA (location only)"), 
+                        multiple = TRUE),
             height = "500px"
           )
         ),
@@ -258,6 +319,12 @@ ui <- navbarPage(
         br(), "MHVillage: Online marketplace for buying and selling manufactured homes. Data may be incomplete."))),
   
   
+            "Map Output", 
+            leafletOutput("leafletMap"))
+        )
+      )
+    )),
+
   tabPanel(
     "Infographics",
     fluidPage(
@@ -283,6 +350,7 @@ ui <- navbarPage(
   
   tabPanel(
     "MHC Site List Tables",
+    "Tables",
     fluidPage(
       titlePanel("Tables"),
       fluidRow(
@@ -300,6 +368,13 @@ ui <- navbarPage(
             downloadLink("mhvillage_all", "Download MHVillage data"),
             br(),
             downloadLink("lara_all", "Download LARA data")
+
+            selectInput("datasource", "Data Source:", choices = c(" ", "MHVillage", "LARA")),
+            selectInput("main_category", "Select Geographic Boundary Type:", choices = c(" ", "County", "House district", "Senate district")),
+            uiOutput("sub_category_ui"),
+            h5("Site List Summary"),
+            tableOutput("site_list_summary"),
+            downloadLink("site_list_download", "Download Site List")
           )
         ),
         column(
@@ -346,6 +421,65 @@ ui <- navbarPage(
 
 server <- function(input, output, session) {
 
+    tabPanel(
+      "Other",
+      page_fillable(
+        titlePanel("Other Information"),
+        layout_columns(
+          card(
+            card_header("Credits"),
+            p("This project was built by the Community Technical Assistance Collaborative in partnership with MHAction."),
+            p("Project lead: ",
+              a("Hessa Al-thani", href = "mailto:hessakh@umich.edu", target = "_blank"), br(),
+              "MHAction contact: ",
+              a("Paul Terranova", href = "mailto:pterranova@mhaction.org", target = "_blank"), br(),
+              "with support from ",
+              a("Deb Campbell", href = "mailto:dcampbell@ionia-mi.net", target = "_blank"), br(),
+              "Website development: ",
+              a("Naichen Shi", href = "mailto:naichens@umich.edu", target = "_blank"), br(),
+              "Web design: ",
+              a("Vicky Wang", href = "mailto:viwa@umich.edu", target = "_blank"), br(),
+              "Data scraping and collection: ",
+              a("Bingqing Xiang", href = "mailto:xbq@umich.edu", target = "_blank"), br(),
+              "In partnership with INFORMS at the University of Michigan"
+            )
+          )),
+        layout_columns(
+          card(card_header("Reference Files"),
+               p(
+                 downloadLink("mhvillage_raw", "MHVillage Raw Data (.csv)"),
+                 br(),
+                 downloadLink("lara_raw", "LARA Raw Data (.csv)"),
+                 br(),
+                 downloadLink("house_geojson", "MI State House Districts 2021 (.json)"),
+                 br(),
+                 downloadLink("senate_geojson", "MI State Senate Districts 2021 (.json)")
+               )
+          )
+        ),
+        
+        p("This is an updated version from June 2024. The original app can be found",
+          a("here", href = "https://hessakh.shinyapps.io/michigan_housing1/", target = "_blank"),
+          ". Updated source code can be found on ",
+          a("Git", href = "https://github.com/viwaumich/mhc", target = "_blank"),
+          ". Please reach out to Vicky Wang (viwa@umich.edu) with questions.")
+      )
+    )
+)
+  
+
+
+server <- function(input, output, session) {
+  # Load the CSV file into a data frame
+  mhvillage_df <- read_csv("MHVillageDec7_Legislative1.csv")
+  mhvillage_df$Sites <- as.integer(mhvillage_df$Sites)
+
+  lara_df <- read_csv("LARA_with_coord_and_legislativedistrict1.csv")
+  lara_df$County <- str_to_title(lara_df$County)
+
+  house_districts <- read_json("Michigan_State_House_Districts_2021.json")
+  senate_districts <- read_json("Michigan_State_Senate_Districts_2021.json")
+  
   circlelist_mh <- list()
   mklist_mh <- list()
   circlelist_lara <- list()
@@ -406,6 +540,8 @@ server <- function(input, output, session) {
         house_districts_j,
         fillColor = "green",
         color = "darkgreen",
+        house_districts,
+        fillColor = "pink",
         fillOpacity = 0.5,
         weight = 1,
         group = "House Districts"
@@ -414,6 +550,8 @@ server <- function(input, output, session) {
         senate_districts_j,
         color = "blueviolet",
         fillColor = "purple",
+        senate_districts,
+        fillColor = "violet",
         fillOpacity = 0.5,
         weight = 1,
         group = "Senate Districts"
@@ -438,7 +576,6 @@ server <- function(input, output, session) {
       }
     }
   })
-  
   
   
 
@@ -559,6 +696,7 @@ server <- function(input, output, session) {
         arrange(desc(`Number of Sites`)) %>%
         mutate(`Number of Sites` = as.integer(`Number of Sites`)) %>%
         select(Name, `Number of Sites`, `Address`)
+        mutate(`Number of Sites` = as.integer(`Number of Sites`))
     }
     
     return(df)
@@ -586,6 +724,8 @@ server <- function(input, output, session) {
   # Update table based on selected inputs
   output$site_list <- renderTable({
     req(input$sub_category)
+=======
+  output$site_list <- renderTable({
     reactive_site_list()
   })
   
