@@ -1,5 +1,107 @@
 reactivity
 
+output$leafletMap <- renderLeaflet({
+    leaflet() %>%
+      addTiles() %>%
+      setView(lng = -85.6024, lat = 44.3148, zoom = 6) %>%
+      addPolygons(
+        data = house_districts,
+        weight = 1,
+        opacity = 1,
+        color = "green",
+        fillOpacity = 0.4,
+        highlightOptions = highlightOptions(
+          weight = 5,
+          color = "yellow",
+          fillColor =  "orange",
+          bringToFront = FALSE
+        ),
+        group = "House Districts"
+      ) %>%
+      addPolygons(
+        data = senate_districts,
+        weight = 1,
+        opacity = 1,
+        color = "purple",
+        fillOpacity = 0.4,
+        highlightOptions = highlightOptions(
+          weight = 5,
+          color = "yellow",
+          fillColor =  "orange",
+          bringToFront = FALSE
+        ),
+        group = "Senate Districts"
+      ) %>%
+      addLayersControl(
+        overlayGroups = c("House Districts", "Senate Districts"),
+        options = layersControlOptions(collapsed = TRUE)
+      ) %>%
+      hideGroup(c("House Districts", "Senate Districts"))
+  })
+  
+  
+output$leafletMap <- renderLeaflet({
+    leaflet() %>%
+      addTiles() %>%
+      setView(lng = -84.3615564, lat = 44.44343, zoom = 6) %>%
+      addGeoJSON(
+         house_districts_j,
+         fillColor = "green",
+         color = "darkgreen",
+         fillOpacity = 0.5,
+         weight = 1,
+         group = "House Districts"
+     ) %>%
+     addGeoJSON(
+         senate_districts_j,
+         color = "blueviolet",
+         fillColor = "purple",
+         fillOpacity = 0.5,
+         weight = 1,
+         group = "Senate Districts"
+     ) %>%
+     addLayersControl(
+         overlayGroups = c("House Districts", "Senate Districts")
+     ) %>%
+     hideGroup(c("House Districts", "Senate Districts"))
+  })
+  
+  observeEvent(input$layerlist, {
+    leafletProxy("leafletMap") %>% 
+      clearMarkers() %>% 
+      clearShapes() %>%
+      clearMarkerClusters()
+    
+    map <- leafletProxy("leafletMap")
+    
+    for (layer in input$layerlist) {
+      if (layer != " ") {
+        map <- build_marker_layer(map, layer)
+      }
+    }
+  })
+  
+  
+  mapdeck(style = mapdeck_style("dark"), 
+            location = c(-84.3615564, 44.44343), 
+            zoom = 6) %>%
+      add_geojson(
+        data = house_districts_j,
+        layer_id = "house_districts",
+        fill_colour = "green",
+        stroke_colour = "darkgreen",
+        fill_opacity = 0.5,
+        stroke_width = 1
+      ) %>%
+      add_geojson(
+        data = senate_districts_j,
+        layer_id = "senate_districts",
+        fill_colour = "purple",
+        stroke_colour = "blueviolet",
+        fill_opacity = 0.5,
+        stroke_width = 1
+      )
+
 build_marker_layer <- function(LARA_C) {
     if (!LARA_C) {
       if (length(circlelist_mh) == 0 && length(mklist_mh) == 0) {
